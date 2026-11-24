@@ -137,5 +137,35 @@ class DiagnosisTests(unittest.TestCase):
         self.assertEqual(workload.status, Status.FAIL)
 
 
+class RenderingTests(unittest.TestCase):
+    def test_pass_verdict_and_counts_shown_in_normal_mode(self):
+        from subcommands import runtime_check
+        sections = runtime.diagnose(
+            _obs(nvfs_stats_enabled=True, nvfs_reads=256, nvfs_read_mib=64, device_read_mib=64.0),
+            PlatformRoutes(native=True, p2pdma=False))
+        text = "\n".join(runtime_check.render_report_sections(sections, verbose=False))
+        self.assertIn("Direct GDS in this run", text)
+        self.assertIn("256 reads (64 MiB)", text)
+        self.assertNotIn("Workload exit status", text)  # a passing workload is not repeated
+
+    def test_failed_workload_is_shown(self):
+        from subcommands import runtime_check
+        sections = runtime.diagnose(_obs(exit_code=1, nvfs_stats_enabled=True, nvfs_reads=0,
+                                         nvfs_read_mib=0, device_read_mib=0.0),
+                                    PlatformRoutes(native=True))
+        text = "\n".join(runtime_check.render_report_sections(sections, verbose=False))
+        self.assertIn("Workload exit status", text)
+
+    def test_tracer_url_renders_on_its_own_line(self):
+        from checks.output import _format_block_text
+        sections = runtime.diagnose(
+            _obs(nvfs_stats_enabled=True, nvfs_reads=0, nvfs_read_mib=0, device_read_mib=64.0),
+            PlatformRoutes(native=True, p2pdma=False))
+        lines = [line.strip() for line in _format_block_text(_diag(sections).mitigation)]
+        self.assertIn("https://github.com/izzet/gdsight", lines)
+        self.assertNotIn("(", lines)
+        self.assertNotIn(").", lines)
+
+
 if __name__ == "__main__":
     unittest.main()

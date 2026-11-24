@@ -140,11 +140,33 @@ def _observe(args: argparse.Namespace, command: list, device):
     )
 
 
+def render_report_sections(sections, verbose: bool = False) -> list:
+    """Render the runtime-check sections. Unlike the shared default, the
+    Diagnosis section is always shown, including a PASS verdict, and the
+    Workload section only when it did not pass or in verbose mode."""
+    from checks.output import render_section
+    from checks.result import Status
+    from checks.runtime import SECTION_DIAGNOSIS, SECTION_WORKLOAD
+
+    lines = []
+    for title, results in sections.items():
+        if not results:
+            continue
+        if title == SECTION_DIAGNOSIS:
+            lines.extend(render_section(title, results, verbose=True))
+        elif title == SECTION_WORKLOAD and not verbose and all(
+                r.status == Status.PASS for r in results):
+            continue
+        else:
+            lines.extend(render_section(title, results, verbose=verbose))
+    return lines
+
+
 def _run(args: argparse.Namespace) -> int:
     from checks import runtime
     from checks.fs_matrix import get_backing_device, get_fs_type
-    from checks.output import (bold, render_mitigation_plan, render_sections,
-                               render_summary, results_to_json)
+    from checks.output import (bold, render_mitigation_plan, render_summary,
+                               results_to_json)
     from checks.version import tool_metadata
 
     command = list(args.workload)
@@ -195,7 +217,7 @@ def _run(args: argparse.Namespace) -> int:
         print(f"  Routes      : {routes.detail}")
         print(f"  Workload    : {obs.command}")
         print()
-        print("\n".join(render_sections(sections, verbose=args.verbose)))
+        print("\n".join(render_report_sections(sections, verbose=args.verbose)))
         print(render_summary(sections))
         print()
         print("\n".join(render_mitigation_plan(sections)))

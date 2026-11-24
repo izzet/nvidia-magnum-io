@@ -215,6 +215,8 @@ def diagnose(obs: RuntimeObservation, routes: PlatformRoutes) -> Dict[str, List[
     """Turn one run's observation into sections of CheckResults."""
     sections: Dict[str, List[CheckResult]] = {
         SECTION_WORKLOAD: [], SECTION_OBSERVED: [], SECTION_DIAGNOSIS: []}
+    # Observed Data Path rows are measurements and are always INFO; the
+    # verdict is the single Diagnosis row.
 
     # --- workload -----------------------------------------------------------
     if obs.exit_code == 0:
@@ -240,7 +242,7 @@ def diagnose(obs: RuntimeObservation, routes: PlatformRoutes) -> Dict[str, List[
     if obs.nvfs_reads is not None:
         sections[SECTION_OBSERVED].append(CheckResult(
             check="nvidia-fs reads", mode=GDSMode.NATIVE,
-            status=Status.PASS if obs.nvfs_reads > 0 else Status.INFO,
+            status=Status.INFO,
             why=(f"{obs.nvfs_reads} reads ({obs.nvfs_read_mib} MiB) were served by nvidia-fs "
                  "during the run." if obs.nvfs_reads > 0 else
                  "No reads were served by nvidia-fs during the run."),
@@ -256,7 +258,7 @@ def diagnose(obs: RuntimeObservation, routes: PlatformRoutes) -> Dict[str, List[
         if P2PDMA_FN in kc:
             sections[SECTION_OBSERVED].append(CheckResult(
                 check="PCI P2PDMA mappings", mode=GDSMode.P2PDMA,
-                status=Status.PASS if p2pdma_maps else Status.INFO,
+                status=Status.INFO,
                 why=(f"{p2pdma_maps} scatter-gather segments were mapped to GPU memory by "
                      "the kernel P2PDMA path." if p2pdma_maps else
                      "No segment was mapped to GPU memory by the kernel P2PDMA path."),
@@ -264,7 +266,7 @@ def diagnose(obs: RuntimeObservation, routes: PlatformRoutes) -> Dict[str, List[
         if NVFS_P2P_FN in kc:
             sections[SECTION_OBSERVED].append(CheckResult(
                 check="nvidia-fs P2P mappings", mode=GDSMode.NATIVE,
-                status=Status.PASS if nvfs_maps else Status.INFO,
+                status=Status.INFO,
                 why=(f"nvidia-fs mapped {nvfs_maps} GPU buffers for P2P DMA." if nvfs_maps else
                      "nvidia-fs mapped no GPU buffer for P2P DMA."),
                 evidence=f"{NVFS_P2P_FN}: {nvfs_maps} calls (system-wide)"))
@@ -328,8 +330,8 @@ def diagnose(obs: RuntimeObservation, routes: PlatformRoutes) -> Dict[str, List[
                        "chunks that fit in it), file descriptors opened without O_DIRECT, "
                        "or reads below a library's GDS size threshold. To attribute each "
                        "read to the operation that issued it, trace the run with a "
-                       "per-operation tracer such as GDSight "
-                       "(https://github.com/izzet/gdsight)."))
+                       "per-operation tracer such as GDSight:\n"
+                       "https://github.com/izzet/gdsight"))
     elif device_read:
         sections[SECTION_DIAGNOSIS].append(CheckResult(
             check="Host-staged reads", mode=GDSMode.COMPAT, status=Status.WARN,
