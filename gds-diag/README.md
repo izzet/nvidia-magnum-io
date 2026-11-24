@@ -11,6 +11,7 @@ gds-diag is structured as a single script (`gds-diag.py`) with subcommands for t
 | `pre-install` | Check host readiness before CUDA/GDS is installed |
 | `post-install` | Validate the installed GDS runtime and version stack |
 | `mount-check` | Diagnose GDS mode availability for a specific filesystem path |
+| `runtime-check` | Run a workload and report whether its reads went directly to GPU memory or through host memory |
 | `config-audit` | Audit the cuFile configuration |
 | `container-check` | Validate GDS visibility from inside a container |
 
@@ -38,6 +39,9 @@ python3 gds-diag.py all /mnt/nvme0
 
 # Check a specific path
 python3 gds-diag.py mount-check /mnt/nvme0
+
+# Run a workload and report the data path its reads took
+python3 gds-diag.py runtime-check --path /mnt/nvme0 -- ./my_app /mnt/nvme0/data.h5
 
 # Check host readiness before CUDA/GDS is installed
 python3 gds-diag.py pre-install

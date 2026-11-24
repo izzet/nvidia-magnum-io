@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- `runtime-check`: run a workload and report the data path its reads took
+  (nvidia-fs, PCI P2PDMA, or host-staged), from the nvidia-fs read counter, the
+  backing block device, and optional ftrace counts (`--kernel-trace`). A
+  host-staged run on a path whose direct route is active is reported as an
+  application or I/O-library cause rather than a platform one.
 - `config-audit`: warn when `miscellaneous.enable_static_config` is true but
   `miscellaneous.static_config_filepath` is missing or not a non-empty string.
 - `mount-check`: detect device-mapper-backed mounts (LVM, dm-crypt,

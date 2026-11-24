@@ -849,6 +849,44 @@ mount such as `proto=rdma,port=20049`. DOCA storage packages include
 
 ---
 
+## subcommand: `runtime-check --path <path> -- <command>`
+
+The other subcommands report whether a host *can* use GDS. `runtime-check`
+reports whether one run of a workload *did*: it runs the command and brackets
+it with counters.
+
+Evidence:
+
+| Source | What it shows | Notes |
+|---|---|---|
+| `/proc/driver/nvidia-fs/stats` `Reads n=` delta | reads served by the nvidia-fs route | needs `rw_stats_enabled=1`; reads 0 on the PCI P2PDMA route |
+| `/sys/class/block/<dev>/stat` sectors-read delta | bytes read from the device backing `--path` | system-wide for that device |
+| `--kernel-trace` (root): ftrace call counts | `pci_p2pdma_map_segment` (P2PDMA direct), `nvfs_get_p2p_dma_mapping` (nvidia-fs direct), `filemap_read` (page cache), `iomap_dio_rw` (direct I/O) | system-wide; the profiler's filter and switch are restored afterwards |
+
+Platform context comes from the `DRIVER CONFIGURATION` line `gdscheck -p`
+prints for the filesystem of `--path`, using the existing token helpers. Older
+`gdscheck` builds print P2PDMA on a separate `<route> P2PDMA` line; both forms
+are read.
+
+Diagnosis (`checks/runtime.py::diagnose`, a pure function):
+
+- direct reads observed: PASS
+- no direct reads, device reads observed, a direct route active: WARN; the data
+  went through host memory although the platform supports the direct path, so
+  the cause is the application or an I/O library (for example HDF5's raw-data
+  chunk cache)
+- no direct reads, device reads observed, no direct route active: WARN; points
+  to `mount-check`
+- P2PDMA route active and no `--kernel-trace`, or no counters at all: INFO,
+  inconclusive
+- no device reads: INFO
+
+The verdict covers the run as a whole. Per-operation attribution, for runs
+that mix direct and host-staged reads, needs a tracer.
+
+With `--json`, the workload's stdout goes to stderr so stdout carries only the
+report. When run under `sudo`, the workload runs as the invoking user.
+
 ## Deferred subcommands
 
 These ideas are intentionally out of the initial supported CLI surface. Keep
